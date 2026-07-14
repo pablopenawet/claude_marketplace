@@ -28,16 +28,43 @@ MESES_ES = [
 # como apertura ANTES de la efeméride.
 GREETINGS = [
     "¿Qué día tan bueno hoy para hacer combobulating no? Pero antes un poquito de historia…",
-    "Cuánto tiempo sin verte, bro. Literal que eres un máquina. Pero antes un poquito de historia…",
+    "Cuánto tiempo sin verte, bro. Eres un máquina, literal. Pero antes un poquito de historia…",
     "Buenas as as as. ¿Sabes aquello de no te acostarás sin saber una cosa más? Pues estoy aquí a tu servicio…",
-    "Como diría DIEGO: BUENOOOOOOOOS DIAAAAAAAS. Y para empezar la session, un poquito de historia…",
+    "Para subir un poco de aur y alcanzar tu primer, te dejo una efémeride aesthetic. Ahí te va...",
+    "Sé que sabes que es wingardium leviosa y no leviosá. Pero a que no sabes qué...",
+    "Sé que sabes que es nucelar y no nuclear. Pero a que no sabes qué...",
+    "¿A quien no le va a gustar una efémeride para iniciar sesión? Vamos allá...",
 ]
 
 WIKIPEDIA_URL = (
-    "https://en.wikipedia.org/api/rest_v1/feed/onthisday/events/{month:02d}/{day:02d}"
+    "https://en.wikipedia.org/api/rest_v1/feed/onthisday/all/{month:02d}/{day:02d}"
 )
 HTTP_TIMEOUT_SECS = 3
 USER_AGENT = "okppg-on-this-day/0.1 (Claude Code plugin; +https://github.com/pablopenawet/claude_marketplace)"
+
+# Sesgo cultural: preferimos efemérides de cine, música, arte y literatura
+# sobre las bélicas/luctuosas/políticas. Match por substring en el texto
+# inglés que devuelve la API. No es exclusión: solo prioriza.
+CULTURAL_KEYWORDS = (
+    # cine
+    "film", "movie", "cinema", "premiere", "premiered", "box office",
+    "blockbuster", "animated", "documentary", "screenplay",
+    # música
+    "album", "song", "single", "band", "orchestra", "symphony", "opera",
+    "concert", "jazz", "rock", "hip hop", "recorded", "chart", "melody",
+    "composer", "songwriter", "musician", "singer",
+    # artes escénicas / visuales
+    "theatre", "theater", "ballet", "broadway", "painting", "sculpture",
+    "exhibition", "museum", "painter", "artist",
+    # literatura
+    "novel", "poem", "poet", "published", "book", "comic", "novelist",
+    "playwright", "author", "writer",
+    # premios / farándula
+    "oscar", "academy award", "grammy", "emmy", "cannes",
+    "nobel prize in literature", "pulitzer", "actor", "actress", "director",
+    # otros culturales
+    "television series", "sitcom", "video game",
+)
 
 # Fallback offline: una efeméride significativa por día clave del año.
 # Cobertura parcial intencional — solo se usa si la API no responde.
@@ -61,8 +88,27 @@ FALLBACK_ES = {
 }
 
 
+def _format(evt):
+    """Devuelve 'AÑO — texto' o None si el evento está incompleto."""
+    year = evt.get("year")
+    text = (evt.get("text") or "").strip()
+    if year is None or not text:
+        return None
+    return f"{year} — {text}"
+
+
+def _is_cultural(evt) -> bool:
+    text = (evt.get("text") or "").lower()
+    return any(kw in text for kw in CULTURAL_KEYWORDS)
+
+
 def fetch_wikipedia_event(month: int, day: int):
-    """Devuelve 'AÑO — texto' o None si falla la red / no hay eventos."""
+    """Devuelve 'AÑO — texto' con sesgo cultural, o None si falla la red.
+
+    Prioridad: cultural (cine/música/arte/literatura) > 'selected'
+    (efemérides curadas por Wikipedia = las más relevantes del día, donde
+    entra lo bélico/político solo si es lo gordo) > 'events' (amplio).
+    """
     url = WIKIPEDIA_URL.format(month=month, day=day)
     req = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
     try:
@@ -71,16 +117,17 @@ def fetch_wikipedia_event(month: int, day: int):
     except (urllib.error.URLError, TimeoutError, json.JSONDecodeError, OSError):
         return None
 
+    selected = payload.get("selected") or []
     events = payload.get("events") or []
-    if not events:
-        return None
 
-    evt = random.choice(events)
-    year = evt.get("year")
-    text = (evt.get("text") or "").strip()
-    if year is None or not text:
-        return None
-    return f"{year} — {text}"
+    cultural = [e for e in (selected + events) if _is_cultural(e)]
+    if cultural:
+        return _format(random.choice(cultural))
+    if selected:
+        return _format(random.choice(selected))
+    if events:
+        return _format(random.choice(events))
+    return None
 
 
 def main() -> None:
