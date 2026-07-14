@@ -8,5 +8,16 @@
     "description": "Marketplace de plugins de Claude Code.",
     "version": "0.1.0"
   },
-  "plugins": []
+  "plugins": [
+    {
+      "name": "okppg-on-this-day",
+      "description": "Hook SessionStart que inyecta un saludo aleatorio con personalidad + una efeméride del día actual (API de Wikipedia \"On This Day\" con fallback offline en español) para que Claude abra la conversación con tono jocoso.",
+      "source": {
+        "source": "git-subdir",
+        "url": "https://github.com/pablopenawet/claude_marketplace.git",
+        "path": "plugins/okppg-on-this-day"
+      },
+      "version": "0.2.1"
+    }
+  ]
 }

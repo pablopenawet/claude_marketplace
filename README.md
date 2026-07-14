@@ -27,4 +27,6 @@ Luego instala plugins con:
 
 ## Plugins
 
-_Aún no hay plugins publicados._
+| Plugin | Versión | Descripción |
+|---|---|---|
+| [okppg-on-this-day](plugins/okppg-on-this-day) | 0.2.1 | Hook SessionStart que inyecta un saludo aleatorio con personalidad + una efeméride del día actual (API de Wikipedia "On This Day" con fallback offline en español) para que Claude abra la conversación con tono jocoso. |
