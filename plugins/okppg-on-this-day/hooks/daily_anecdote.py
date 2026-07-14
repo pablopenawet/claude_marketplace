@@ -73,9 +73,10 @@ CULTURAL_KEYWORDS = (
 # Tune freely.
 GALICIA_CHANCE = 0.06
 
-# Curated Galician-culture anecdotes (Spanish, date-independent). Picked at
-# random when the Galicia roll hits. Cultural-leaning on purpose.
+# Curated Galician anecdotes (Spanish, date-independent). Picked at random
+# when the Galicia roll hits. Culture, history and geography — never grim.
 GALICIA_EFEMERIDES = [
+    # culture
     "1837 — Nace en Santiago de Compostela Rosalía de Castro, voz mayor de la poesía gallega y del Rexurdimento.",
     "1863 — Rosalía de Castro publica «Cantares Gallegos», obra fundacional de la literatura moderna en gallego.",
     "1188 — El Mestre Mateo remata el Pórtico da Gloria de la Catedral de Santiago, cumbre del románico europeo.",
@@ -88,6 +89,16 @@ GALICIA_EFEMERIDES = [
     "1989 — Camilo José Cela, nacido en Iria Flavia (Padrón), recibe el Premio Nobel de Literatura.",
     "1996 — Carlos Núñez publica «A Irmandade das Estrelas», llevando la gaita gallega a escenarios de todo el mundo.",
     "1998 — Manuel Rivas publica «O lapis do carpinteiro», éxito de la narrativa gallega contemporánea.",
+    # history
+    "813 — Según la tradición, se halla en Compostela el sepulcro del apóstol Santiago, origen del Camino de peregrinación.",
+    "910 — García I es proclamado rey de Galicia, que llega a constituirse como reino propio.",
+    "1075 — Comienza la construcción de la Catedral de Santiago de Compostela.",
+    "1833 — Galicia queda organizada en sus cuatro provincias: A Coruña, Lugo, Ourense y Pontevedra.",
+    # geography
+    "2009 — La Torre de Hércules de A Coruña, el faro romano en funcionamiento más antiguo del mundo, es declarada Patrimonio de la Humanidad.",
+    "2002 — Las Illas Cíes, en la ría de Vigo, se integran en el Parque Nacional das Illas Atlánticas de Galicia.",
+    "Fisterra, en la Costa da Morte, fue considerada por los romanos el finis terrae: el fin del mundo conocido.",
+    "La Ribeira Sacra, en los cañones del Sil y el Miño, reúne la mayor concentración de monasterios románicos de Europa.",
 ]
 
 # Offline fallback: one notable anecdote per key date. Partial coverage on
@@ -159,11 +170,11 @@ def main() -> None:
     month, day = today.month, today.day
     date_es = f"{day} de {MESES_ES[month - 1]}"
 
-    # Galicia roll: date-independent, already Spanish, its own header.
+    # Galicia roll: date-independent and already Spanish, but presented with
+    # the SAME header as any other anecdote so the rule stays transparent.
     if random.random() < GALICIA_CHANCE:
         event = random.choice(GALICIA_EFEMERIDES)
         source = "efeméride cultural gallega (curada, ya en español)"
-        header = "🌊 Desde Galicia, un apunte cultural…"
         lang_note = "(ya está en español, no la traduzcas)"
     else:
         event = fetch_wikipedia_event(month, day)
@@ -171,8 +182,9 @@ def main() -> None:
         if not event:
             event = FALLBACK_ES.get(f"{month:02d}-{day:02d}")
             source = "fallback local (ya en español)" if event else None
-        header = f"📅 Un {date_es} como hoy…"
         lang_note = "(tradúcela al español si la fuente viene en inglés)"
+
+    header = f"📅 Un {date_es} como hoy…"
 
     if not event:
         # No anecdote available: inject nothing so we don't pollute context.

@@ -29,4 +29,4 @@ Luego instala plugins con:
 
 | Plugin | Versión | Descripción |
 |---|---|---|
-| [okppg-on-this-day](plugins/okppg-on-this-day) | 0.4.0 | Hook SessionStart que inyecta un saludo aleatorio con personalidad + una efeméride del día actual con sesgo cultural (cine/música/arte/literatura; API de Wikipedia "On This Day" con fallback offline en español), y de vez en cuando una efeméride de la cultura gallega, para que Claude abra la conversación con tono jocoso. |
+| [okppg-on-this-day](plugins/okppg-on-this-day) | 0.4.1 | Hook SessionStart que inyecta un saludo aleatorio con personalidad + una efeméride del día actual con sesgo cultural (cine/música/arte/literatura; API de Wikipedia "On This Day" con fallback offline en español), y de vez en cuando una efeméride de la cultura gallega, para que Claude abra la conversación con tono jocoso. |
