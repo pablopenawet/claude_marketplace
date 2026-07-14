@@ -1,0 +1,12 @@
+{
+  "name": "okppg-marketplace",
+  "owner": {
+    "name": "Pablo Pena",
+    "email": "pablopena@wetaca.com"
+  },
+  "metadata": {
+    "description": "Marketplace de plugins de Claude Code.",
+    "version": "0.1.0"
+  },
+  "plugins": []
+}
