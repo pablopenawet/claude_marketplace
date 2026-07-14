@@ -2,10 +2,11 @@
 """SessionStart hook — injects a historical "on this day" anecdote.
 
 Strategy:
-  1. Occasionally (GALICIA_CHANCE) inject a curated Galician-culture anecdote
-     instead of the day's event, so the user's region shows up now and then.
+  1. If today matches a dated Galician efeméride (GALICIA_EFEMERIDES), inject
+     it instead of the day's event — a real on-this-day event, ≥2 per month.
   2. Otherwise query Wikipedia's public "On This Day" API, biasing selection
-     toward cultural events (film/music/art/literature) over war/politics.
+     toward favorite fan topics (FAVORITE_TERMS) first, then cultural events
+     (film/music/art/literature) over war/politics.
   3. If the network fails, fall back to a small offline table (FALLBACK_ES).
   4. Emit the result via hookSpecificOutput.additionalContext as a directive
      telling Claude to open its first reply with the greeting + the anecdote.
@@ -68,38 +69,80 @@ CULTURAL_KEYWORDS = (
     "television series", "sitcom", "video game",
 )
 
-# Probability that a session shows a Galician anecdote instead of the day's
-# event. ~0.06 ≈ a couple of times a month at roughly one session per day.
-# Tune freely.
-GALICIA_CHANCE = 0.06
+# Favorite topics: if the day's Wikipedia list contains an event about one of
+# these, it wins over generic cultural events. Distinctive multi-word terms so
+# a plain substring match doesn't false-positive (e.g. "super mario", not
+# "mario", which would hit any person named Mario). Matched lowercase.
+FAVORITE_TERMS = (
+    # The Beatles (music)
+    "the beatles", "john lennon", "paul mccartney", "george harrison", "ringo starr",
+    # Studio Ghibli (animation)
+    "studio ghibli", "hayao miyazaki", "isao takahata", "spirited away",
+    # Tolkien (literature)
+    "tolkien", "lord of the rings", "the hobbit", "silmarillion", "middle-earth",
+    # Harry Potter (literature)
+    "harry potter", "j. k. rowling", "j.k. rowling",
+    # Pokémon (video games)
+    "pokémon", "pokemon",
+    # The Legend of Zelda (video games)
+    "legend of zelda",
+    # Super Mario Bros (video games)
+    "super mario", "mario bros",
+    # Science-fiction cinema
+    "science fiction film", "science-fiction film", "sci-fi film",
+    "star wars", "star trek", "blade runner", "2001: a space odyssey",
+)
 
-# Curated Galician anecdotes (Spanish, date-independent). Picked at random
-# when the Galicia roll hits. Culture, history and geography — never grim.
-GALICIA_EFEMERIDES = [
-    # culture
-    "1837 — Nace en Santiago de Compostela Rosalía de Castro, voz mayor de la poesía gallega y del Rexurdimento.",
-    "1863 — Rosalía de Castro publica «Cantares Gallegos», obra fundacional de la literatura moderna en gallego.",
-    "1188 — El Mestre Mateo remata el Pórtico da Gloria de la Catedral de Santiago, cumbre del románico europeo.",
-    "1851 — Nace en A Coruña Emilia Pardo Bazán, introductora del naturalismo en la literatura española.",
-    "1866 — Nace en Vilanova de Arousa Ramón María del Valle-Inclán, padre del esperpento.",
-    "1916 — Se funda en A Coruña la primera Irmandade da Fala, germen del galleguismo cultural moderno.",
-    "1944 — Castelao publica en el exilio «Sempre en Galiza», texto clave del pensamiento galleguista.",
-    "1969 — Andrés do Barro triunfa con «O tren», una de las primeras canciones en gallego en las listas españolas.",
-    "1979 — Nace en Santiago el grupo Milladoiro, referente de la música folk gallega.",
-    "1989 — Camilo José Cela, nacido en Iria Flavia (Padrón), recibe el Premio Nobel de Literatura.",
-    "1996 — Carlos Núñez publica «A Irmandade das Estrelas», llevando la gaita gallega a escenarios de todo el mundo.",
-    "1998 — Manuel Rivas publica «O lapis do carpinteiro», éxito de la narrativa gallega contemporánea.",
-    # history
-    "813 — Según la tradición, se halla en Compostela el sepulcro del apóstol Santiago, origen del Camino de peregrinación.",
-    "910 — García I es proclamado rey de Galicia, que llega a constituirse como reino propio.",
-    "1075 — Comienza la construcción de la Catedral de Santiago de Compostela.",
-    "1833 — Galicia queda organizada en sus cuatro provincias: A Coruña, Lugo, Ourense y Pontevedra.",
-    # geography
-    "2009 — La Torre de Hércules de A Coruña, el faro romano en funcionamiento más antiguo del mundo, es declarada Patrimonio de la Humanidad.",
-    "2002 — Las Illas Cíes, en la ría de Vigo, se integran en el Parque Nacional das Illas Atlánticas de Galicia.",
-    "Fisterra, en la Costa da Morte, fue considerada por los romanos el finis terrae: el fin del mundo conocido.",
-    "La Ribeira Sacra, en los cañones del Sil y el Miño, reúne la mayor concentración de monasterios románicos de Europa.",
-]
+# Dated Galician efemérides — real events tied to an exact day of Galicia or of
+# Galician figures. Key "MM-DD". Injected ONLY on the matching day, where it
+# wins over Wikipedia (and skips the network call). Curated with ≥2 per month
+# (here ~3-4) to guarantee frequency; all dates web-verified.
+GALICIA_EFEMERIDES = {
+    "01-05": "1936 — Muere en Santiago de Compostela el escritor Ramón María del Valle-Inclán, gran renovador del teatro español y creador del esperpento.",
+    "01-07": "1950 — Muere en el exilio, en Buenos Aires, Alfonso Daniel Rodríguez Castelao, máxima figura del galleguismo y la cultura gallega del siglo XX.",
+    "01-15": "2012 — Fallece Manuel Fraga Iribarne, fundador del Partido Popular y presidente de la Xunta de Galicia entre 1990 y 2005.",
+    "01-30": "1886 — Nace en Rianxo (A Coruña) Castelao, escritor, dibujante, médico y político, uno de los padres del nacionalismo gallego.",
+    "01-31": "1820 — Nace en Ferrol Concepción Arenal, pensadora, escritora y pionera del feminismo y del reformismo penitenciario en España.",
+    "02-04": "1893 — Muere en Vigo Concepción Arenal, escritora y activista ferrolana precursora de la defensa de los derechos humanos en España.",
+    "02-08": "1835 — Nace en Ponteceso (A Coruña) el poeta Eduardo Pondal, autor de la letra del himno gallego, 'Os pinos'.",
+    "02-28": "1981 — Muere en Vigo Álvaro Cunqueiro, novelista, poeta y periodista, una de las grandes figuras literarias gallegas del siglo XX.",
+    "03-05": "1888 — Nace en Ourense Ramón Otero Pedrayo, escritor y figura central de la Xeración Nós y de la cultura gallega.",
+    "03-07": "1908 — Muere en La Habana el poeta y periodista ourensano Manuel Curros Enríquez, una de las voces clave del Rexurdimento gallego.",
+    "03-08": "1917 — Muere en A Coruña el poeta Eduardo Pondal, 'o bardo', autor de la letra del himno de Galicia.",
+    "04-10": "1976 — Muere en Ourense el escritor Ramón Otero Pedrayo, una de las grandes figuras de la literatura gallega y del galleguismo del siglo XX.",
+    "04-21": "1211 — El arzobispo Pedro Muñiz consagra la Catedral de Santiago de Compostela, en presencia del rey Alfonso IX de León y Galicia.",
+    "04-29": "1964 — Muere en Madrid el escritor y periodista coruñés Wenceslao Fernández Flórez, autor de 'El bosque animado'.",
+    "05-11": "1916 — Nace en Iria Flavia (Padrón, A Coruña) Camilo José Cela, escritor gallego y Premio Nobel de Literatura en 1989.",
+    "05-12": "1921 — Muere en Madrid la escritora coruñesa Emilia Pardo Bazán, figura clave del naturalismo y de la narrativa española.",
+    "05-17": "1963 — Se celebra por primera vez el Día das Letras Galegas, instaurado por la Real Academia Galega y dedicado a Rosalía de Castro.",
+    "05-31": "1915 — Nace en Láncara (Lugo) Ramón Piñeiro, intelectual galleguista, fundador de la editorial Galaxia y homenajeado en las Letras Galegas de 2009.",
+    "06-13": "1910 — Nace en Ferrol el escritor Gonzalo Torrente Ballester, autor de 'Los gozos y las sombras' y Premio Cervantes 1985.",
+    "06-27": "2009 — La UNESCO declara Patrimonio de la Humanidad la Torre de Hércules de A Coruña, único faro romano del mundo aún en funcionamiento.",
+    "06-28": "1936 — El pueblo gallego aprueba en plebiscito el Estatuto de Autonomía de Galicia, último gran acto político antes de la Guerra Civil.",
+    "07-12": "1900 — Nace en Rianxo el poeta Manuel Antonio (Pérez Sánchez), gran figura de la vanguardia gallega y autor de 'De catro a catro'.",
+    "07-15": "1885 — Muere en Padrón Rosalía de Castro, poeta y novelista, figura central del Rexurdimento y de la lírica gallega moderna.",
+    "07-25": "1920 — Se celebra por primera vez el Día Nacional de Galicia (Día da Patria Galega), acordado por las Irmandades da Fala en la fiesta del Apóstol Santiago.",
+    "07-30": "1858 — Muere ahogado en la playa de San Amaro (A Coruña) el poeta compostelano Aurelio Aguirre, el 'Espronceda gallego', con solo 25 años.",
+    "08-17": "1936 — Es fusilado en A Caeira (Poio) Alexandre Bóveda, dirigente del Partido Galeguista; la fecha se recuerda como Día da Galiza Mártir.",
+    "08-23": "1923 — Se funda en Vigo el Real Club Celta de Vigo, fruto de la fusión del Real Fortuna y el Vigo Sporting.",
+    "08-29": "1924 — Muere en Bergondo, con 37 años, el filósofo y pedagogo galleguista Xohán Vicente Viqueira, miembro de las Irmandades da Fala.",
+    "09-08": "2004 — Muere en A Coruña el poeta Manuel María (Fernández Teixeiro), voz esencial de las letras gallegas, homenajeado en las Letras Galegas de 2016.",
+    "09-14": "1897 — Nace en Ourense el escritor Eduardo Blanco Amor, autor de 'A esmorga', a quien se dedicó el Día das Letras Galegas de 1993.",
+    "09-15": "1851 — Nace en Celanova (Ourense) el poeta Manuel Curros Enríquez, uno de los grandes nombres del Rexurdimento gallego.",
+    "09-16": "1851 — Nace en A Coruña la escritora Emilia Pardo Bazán, novelista e introductora del naturalismo en España.",
+    "10-06": "1929 — Nace en Outeiro de Rei (Lugo) el poeta Manuel María, figura central de la literatura gallega y Día das Letras Galegas 2016.",
+    "10-24": "1866 — Muere en Cuntis Domingo Fontán, matemático y geógrafo gallego, autor de la primera Carta Geométrica de Galicia (1834).",
+    "10-28": "1866 — Nace en Vilanova de Arousa (Pontevedra) el escritor gallego Ramón María del Valle-Inclán, creador del esperpento.",
+    "10-30": "1999 — Muere en Santiago de Compostela el poeta gallego Uxío Novoneyra, autor de 'Os Eidos' y voz del Courel.",
+    "11-03": "1928 — Nace en Gres, Vila de Cruces (Pontevedra), el escritor gallego Xosé Neira Vilas, autor de 'Memorias dun neno labrego'.",
+    "11-13": "2002 — El petrolero Prestige sufre una avería en un temporal frente a la Costa da Morte e inicia el vertido de fuel que devastó la costa gallega.",
+    "11-19": "2002 — El Prestige se parte en dos y se hunde a unos 250 km de Galicia, provocando una de las mayores catástrofes ambientales de la navegación.",
+    "11-23": "1922 — Nace en Vilalba (Lugo) Manuel Fraga Iribarne, ministro franquista, fundador de AP/PP y presidente de la Xunta de Galicia (1990-2005).",
+    "11-27": "2015 — Muere en Gres (Pontevedra) el escritor gallego Xosé Neira Vilas, referente de la identidad gallega y de la emigración.",
+    "12-20": "1907 — Se estrena el himno gallego 'Os Pinos' (letra de Eduardo Pondal, música de Pascual Veiga) en el Centro Gallego de La Habana.",
+    "12-21": "1980 — Galicia aprueba en referéndum su Estatuto de Autonomía, con el 78,8% de votos a favor.",
+    "12-22": "1911 — Nace en Mondoñedo (Lugo) el escritor gallego Álvaro Cunqueiro, autor de 'Merlín e familia' y Día das Letras Galegas 1991.",
+}
 
 # Offline fallback: one notable anecdote per key date. Partial coverage on
 # purpose — only used when the API does not respond.
@@ -137,12 +180,18 @@ def _is_cultural(evt) -> bool:
     return any(kw in text for kw in CULTURAL_KEYWORDS)
 
 
+def _is_favorite(evt) -> bool:
+    text = (evt.get("text") or "").lower()
+    return any(term in text for term in FAVORITE_TERMS)
+
+
 def fetch_wikipedia_event(month: int, day: int):
     """Return 'YEAR — text' with a cultural bias, or None on network failure.
 
-    Priority: cultural (film/music/art/literature) > 'selected' (Wikipedia's
-    curated most-relevant events of the day, where war/politics only appears
-    if it is the day's headline) > 'events' (broad pool).
+    Priority: favorite (curated fan topics) > cultural (film/music/art/
+    literature) > 'selected' (Wikipedia's curated most-relevant events of the
+    day, where war/politics only appears if it is the day's headline) >
+    'events' (broad pool).
     """
     url = WIKIPEDIA_URL.format(month=month, day=day)
     req = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
@@ -155,6 +204,9 @@ def fetch_wikipedia_event(month: int, day: int):
     selected = payload.get("selected") or []
     events = payload.get("events") or []
 
+    favorite = [e for e in (selected + events) if _is_favorite(e)]
+    if favorite:
+        return _format(random.choice(favorite))
     cultural = [e for e in (selected + events) if _is_cultural(e)]
     if cultural:
         return _format(random.choice(cultural))
@@ -170,11 +222,13 @@ def main() -> None:
     month, day = today.month, today.day
     date_es = f"{day} de {MESES_ES[month - 1]}"
 
-    # Galicia roll: date-independent and already Spanish, but presented with
-    # the SAME header as any other anecdote so the rule stays transparent.
-    if random.random() < GALICIA_CHANCE:
-        event = random.choice(GALICIA_EFEMERIDES)
-        source = "efeméride cultural gallega (curada, ya en español)"
+    # Galician efeméride: if today has a dated Galician event it wins over
+    # Wikipedia and skips the network call. It is a real "on this day" event,
+    # so it uses the SAME header as any other anecdote — no special-casing.
+    galicia_ef = GALICIA_EFEMERIDES.get(f"{month:02d}-{day:02d}")
+    if galicia_ef:
+        event = galicia_ef
+        source = "efeméride gallega (curada y verificada, ya en español)"
         lang_note = "(ya está en español, no la traduzcas)"
     else:
         event = fetch_wikipedia_event(month, day)
