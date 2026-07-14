@@ -90,7 +90,7 @@ FAVORITE_TERMS = (
     "super mario", "mario bros",
     # Science-fiction cinema
     "science fiction film", "science-fiction film", "sci-fi film",
-    "star wars", "star trek", "blade runner", "2001: a space odyssey",
+    "blade runner", "back to the future", "2001: a space odyssey",
 )
 
 # Dated Galician efemérides — real events tied to an exact day of Galicia or of
